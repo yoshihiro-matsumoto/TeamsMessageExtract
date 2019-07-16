@@ -7,23 +7,33 @@ function Export-TeamsMessagesAndReplies {
         $QueryFilter
     )  
     process {
-        $messageList = Invoke-RestMethod -Headers @{Authorization = "Bearer $AccessToken" } -Uri https://graph.microsoft.com/beta/teams/$TeamId/channels/$ChannelId/messages -Method Get
+        $messages = Invoke-RestMethod -Headers @{Authorization = "Bearer $AccessToken" } -Uri https://graph.microsoft.com/beta/teams/$TeamId/channels/$ChannelId/messages -Method Get
         $userList = Invoke-RestMethod -Headers @{Authorization = "Bearer $AccessToken"} -Uri https://graph.microsoft.com/v1.0/users?$QueryFilter -Method Get
+        $messageList = @()
         $repliesList = @()
 
-        foreach ($message in $messageList.value) {
-            $message_id = $message.id
-            Try {
-                $replies = Invoke-RestMethod -Headers @{Authorization = "Bearer $AccessToken" } -Uri https://graph.microsoft.com/beta/teams/$TeamId/channels/$ChannelId/messages/$message_id/replies -Method Get
+        do {
+            foreach ($message in $messages.value) {
+                $message_id = $message.id
+                Try {
+                    $replies = Invoke-RestMethod -Headers @{Authorization = "Bearer $AccessToken" } -Uri https://graph.microsoft.com/beta/teams/$TeamId/channels/$ChannelId/messages/$message_id/replies -Method Get
+                }
+                Catch {
+    
+                }
+                $repliesList += $replies.value
             }
-            Catch {
-
+            $messageList += $messages.value
+            if ($messages.'@odata.nextLink' -eq $null ) {
+                break
             }
-            $repliesList += $replies.value
-        }
+            else {
+                $messages = Invoke-RestMethod -Headers @{Authorization = "Bearer $accesstoken" } -Uri $messages.'@odata.nextLink' -Method Get
+            }
+        } while ($true)
 
-        $userList.value | ConvertTo-Json -Depth 10 | Out-File $ExportPath\\User.json
-        $messageList.value | ConvertTo-Json -Depth 10 | Out-File $ExportPath\\Messages.json
+        $userList.value | ConvertTo-Json -Depth 10 | Out-File $ExportPath\\Users.json
+        $messageList | ConvertTo-Json -Depth 10 | Out-File $ExportPath\\Messages.json
         $repliesList | ConvertTo-Json -Depth 10 | Out-File $ExportPath\\Replies.json
     }
 }
