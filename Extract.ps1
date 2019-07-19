@@ -21,13 +21,19 @@ function Export-TeamsMessagesAndReplies {
                 Catch {
     
                 }
-                $repliesList += $replies.value
+                do {
+                    $repliesList += $replies.value
+                    if ($null -eq $replies.'@odata.nextLink') {
+                        break
+                    } else {
+                        $replies = Invoke-RestMethod -Headers @{Authorization = "Bearer $accesstoken" } -Uri $replies.'@odata.nextLink' -Method Get
+                    }
+                } while ($true)
             }
             $messageList += $messages.value
-            if ($messages.'@odata.nextLink' -eq $null ) {
+            if ($null -eq $messages.'@odata.nextLink') {
                 break
-            }
-            else {
+            } else {
                 $messages = Invoke-RestMethod -Headers @{Authorization = "Bearer $accesstoken" } -Uri $messages.'@odata.nextLink' -Method Get
             }
         } while ($true)
